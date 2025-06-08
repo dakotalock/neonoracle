@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Oracle: AI App Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --secondary: #8b5cf6;
+            --accent: #ec4899;
+            --dark: #0f172a;
+            --darker: #020617;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--darker);
+            color: #e2e8f0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-image: 
+                radial-gradient(circle at 25% 25%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 75% 75%, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            max-width: 5xl;
+            margin-left: auto;
+            margin-right: auto;
+            width: 100%;
+            overflow: hidden;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 30px rgba(99, 102, 241, 0.2);
+        }
+        
+        .header {
+            padding: 1.5rem;
+            text-align: center;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                to bottom right,
+                transparent 0%,
+                rgba(255, 255, 255, 0.1) 50%,
+                transparent 100%
+            );
+            transform: rotate(30deg);
+            animation: shine 3s infinite;
+        }
+        
+        @keyframes shine {
+            0% { transform: translateX(-100%) rotate(30deg); }
+            100% { transform: translateX(100%) rotate(30deg); }
+        }
+        
+        .title {
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 10;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(to right, #fff, #c7d2fe);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        
+        .subtitle {
+            font-size: 0.875rem;
+            font-weight: 500;
+            opacity: 0.8;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .chat-history {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+            space-y: 1.5rem;
+            background: rgba(2, 6, 23, 0.7);
+        }
+        
+        .message-bubble {
+            padding: 1rem;
+            border-radius: 0.75rem;
+            max-width: 85%;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .message-bubble::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.3), transparent);
+        }
+        
+        .user-bubble {
+            background: linear-gradient(to right, #6366f1, #4f46e5);
+            margin-left: auto;
+            border: 1px solid rgba(99, 102, 241, 0.5);
+            animation: fadeInRight 0.3s ease-out;
+        }
+        
+        .planner-bubble {
+            background: linear-gradient(to right, #8b5cf6, #7c3aed);
+            margin-right: auto;
+            border: 1px solid rgba(139, 92, 246, 0.5);
+            animation: fadeInLeft 0.3s ease-out;
+        }
+        
+        .coder-bubble {
+            background: linear-gradient(to right, #ec4899, #db2777);
+            margin-right: auto;
+            border: 1px solid rgba(236, 72, 153, 0.5);
+            animation: fadeInLeft 0.4s ease-out;
+        }
+        
+        .input-area {
+            padding: 1rem;
+            border-top: 1px solid #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: rgba(15, 23, 42, 0.9);
+        }
+        
+        .text-input {
+            flex: 1;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            background: #1e293b;
+            color: white;
+            border: 1px solid #1e293b;
+            transition: all 0.2s;
+        }
+        
+        .text-input:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 1px #6366f1;
+        }
+        
+        .send-button {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .send-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.3);
+        }
+        
+        .loading-spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid #fff;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+            margin-left: 0.5rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .code-container {
+            margin-top: 0.75rem;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            background: #0f172a;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+        
+        .code-header {
+            padding: 0.5rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(to right, #1e293b, #334155);
+            border-bottom: 1px solid #1e293b;
+        }
+        
+        .code-title {
+            font-size: 0.75rem;
+            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+            font-weight: 700;
+            color: #cbd5e1;
+        }
+        
+        .copy-button {
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.1);
+            color: #cbd5e1;
+        }
+        
+        .copy-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .code-content {
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+            font-size: 0.8125rem;
+            line-height: 1.5;
+            color: #e2e8f0;
+        }
+        
+        .model-indicator {
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            display: flex;
+            align-items: center;
+        }
+        
+        .model-indicator::before {
+            content: '';
+            display: inline-block;
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+        
+        .planner-indicator::before {
+            background: #a78bfa;
+            box-shadow: 0 0 5px #a78bfa;
+        }
+        
+        .coder-indicator::before {
+            background: #f472b6;
+            box-shadow: 0 0 5px #f472b6;
+        }
+        
+        .typing-indicator {
+            display: flex;
+            gap: 0.25rem;
+            align-items: center;
+        }
+        
+        .typing-dot {
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 50%;
+            background-color: white;
+            opacity: 0.6;
+            animation: typingAnimation 1.4s infinite ease-in-out;
+        }
+        
+        .typing-dot:nth-child(1) { animation-delay: 0s; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        
+        @keyframes typingAnimation {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.6; }
+            30% { transform: translateY(-5px); opacity: 1; }
+        }
+        
+        @keyframes fadeInRight {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        @keyframes fadeInLeft {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.5);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.7);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">Neon Oracle</h1>
+            <p class="subtitle">Describe your app idea and watch AI generate the complete code</p>
+        </div>
+
+        <div id="chatHistory" class="chat-history">
+            <div class="message-bubble planner-bubble">
+                <div class="model-indicator planner-indicator">ARCHITECT MODEL (Gemini 2.0 Flash)</div>
+                <p>I'll analyze your app requirements and create a detailed development plan.</p>
+            </div>
+            <div class="message-bubble coder-bubble">
+                <div class="model-indicator coder-indicator">DEVELOPER MODEL (Gemini 1.5 Flash)</div>
+                <p>Ready to transform the architect's plan into clean, functional code.</p>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <input type="text" id="userInput" class="text-input" placeholder="Describe the app you want to build (e.g., 'A todo app with dark mode')" autocomplete="off" autofocus>
+            <button id="sendButton" class="send-button">
+                Generate App
+                <span id="spinner" class="loading-spinner hidden"></span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const chatHistory = document.getElementById('chatHistory');
+        const userInput = document.getElementById('userInput');
+        const sendButton = document.getElementById('sendButton');
+        const spinner = document.getElementById('spinner');
+
+        // Gemini API Configuration
+        const API_KEY = "AIzaSyAaZvzKxSddPgXN6JtGMLpGjmNSBOloFcI";
+        const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/";
+
+        async function callGeminiAPI(model, prompt) {
+            const modelEndpoint = model === 'planner' ? 
+                'gemini-1.5-flash:generateContent' : 
+                'gemini-1.5-flash:generateContent';
+            
+            try {
+                const response = await fetch(`${API_URL}${modelEndpoint}?key=${API_KEY}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{ text: prompt }]
+                        }]
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API request failed with status ${response.status}`);
+                }
+                
+                const data = await response.json();
+                return data.candidates[0].content.parts[0].text;
+            } catch (error) {
+                console.error('API Error:', error);
+                throw error;
+            }
+        }
+
+        function addMessage(role, text, isCode = false) {
+            const messageDiv = document.createElement('div');
+            let bubbleClass = '';
+            let indicator = '';
+            
+            if (role === 'user') {
+                bubbleClass = 'user-bubble';
+            } else if (role === 'planner') {
+                bubbleClass = 'planner-bubble';
+                indicator = `<div class="model-indicator planner-indicator">ARCHITECT MODEL</div>`;
+            } else if (role === 'coder') {
+                bubbleClass = 'coder-bubble';
+                indicator = `<div class="model-indicator coder-indicator">DEVELOPER MODEL</div>`;
+            }
+            
+            messageDiv.className = `message-bubble ${bubbleClass}`;
+            
+            if (isCode) {
+                const codeMatch = text.match(/```html\n([\s\S]*?)\n```/);
+                const codeContent = codeMatch ? codeMatch[1] : text;
+                
+                messageDiv.innerHTML = `
+                    ${indicator}
+                    <p>Here's your generated app code:</p>
+                    <div class="code-container mt-3">
+                        <div class="code-header">
+                            <span class="code-title">index.html</span>
+                            <button class="copy-button" onclick="copyCode(this)">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                                </svg>
+                                Copy
+                            </button>
+                        </div>
+                        <div class="code-content">${escapeHTML(codeContent)}</div>
+                    </div>
+                `;
+            } else if (role === 'planner' || role === 'coder') {
+                messageDiv.innerHTML = `
+                    ${indicator}
+                    <div class="typing-indicator">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                `;
+                
+                setTimeout(() => {
+                    messageDiv.innerHTML = `
+                        ${indicator}
+                        <p>${escapeHTML(text)}</p>
+                    `;
+                    chatHistory.scrollTop = chatHistory.scrollHeight;
+                }, 1500);
+            } else {
+                messageDiv.innerHTML = `<p>${escapeHTML(text)}</p>`;
+            }
+            
+            chatHistory.appendChild(messageDiv);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        function escapeHTML(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        async function generateApp() {
+            const prompt = userInput.value.trim();
+            if (!prompt) return;
+            
+            addMessage('user', prompt);
+            userInput.value = '';
+            userInput.disabled = true;
+            sendButton.disabled = true;
+            spinner.classList.remove('hidden');
+            
+            try {
+                // Step 1: Get plan from architect model
+                const planPrompt = `As a software architect, create a detailed plan for a web application based on: "${prompt}". Include:
+1. App Title
+2. Purpose (1-2 sentences)
+3. Key Features (bulleted list)
+4. UI Elements (list of components)
+5. Styling Guidelines (Tailwind CSS preferences)
+6. Core Logic Outline (main JavaScript functionality)
+
+Make it detailed but concise.`;
+                
+                addMessage('planner', 'Analyzing requirements and creating development plan...');
+                const plan = await callGeminiAPI('planner', planPrompt);
+                addMessage('planner', plan);
+
+                // Step 2: Get code from developer model
+                const codePrompt = `Convert this app plan into a complete, standalone HTML file using Tailwind CSS:
+${plan}
+
+Requirements:
+1. Use Tailwind CSS via CDN
+2. Include all necessary JavaScript in a single script tag
+3. Make it fully responsive
+4. Add detailed comments explaining the code
+5. Ensure proper HTML structure with doctype, head, and body
+6. Use modern, clean design with proper spacing
+7. Output should be a complete HTML file wrapped in \`\`\`html\n...\`\`\``;
+                
+                addMessage('coder', 'Generating code from the development plan...');
+                const code = await callGeminiAPI('coder', codePrompt);
+                addMessage('coder', code, true);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                addMessage('coder', `Error: ${error.message}`);
+            } finally {
+                userInput.disabled = false;
+                sendButton.disabled = false;
+                spinner.classList.add('hidden');
+                userInput.focus();
+            }
+        }
+
+        // Event listeners
+        sendButton.addEventListener('click', generateApp);
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') generateApp();
+        });
+
+        window.copyCode = function(button) {
+            const codeContainer = button.closest('.code-container');
+            const codeContent = codeContainer.querySelector('.code-content').textContent;
+            
+            navigator.clipboard.writeText(codeContent).then(() => {
+                const originalText = button.innerHTML;
+                button.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Copied!
+                `;
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                button.textContent = 'Failed!';
+                setTimeout(() => {
+                    button.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        Error
+                    `;
+                }, 2000);
+            });
+        };
+    </script>
+</body>
+</html>
