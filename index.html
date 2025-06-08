@@ -25,6 +25,17 @@
             background-image: 
                 radial-gradient(circle at 25% 25%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
                 radial-gradient(circle at 75% 75%, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
+            position: relative;
+        }
+        
+        .watermark {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.4);
+            text-align: center;
+            margin-top: 0.5rem; /* Space below subtitle */
+            position: relative; /* Ensure z-index works within header */
+            z-index: 10;
+            user-select: none;
         }
         
         .container {
@@ -96,7 +107,7 @@
             flex: 1;
             padding: 1.5rem;
             overflow-y: auto;
-            space-y: 1.5rem;
+            @apply space-y-6; /* Increased spacing between messages for better readability */
             background: rgba(2, 6, 23, 0.7);
         }
         
@@ -178,6 +189,7 @@
             background: linear-gradient(to right, var(--primary), var(--secondary));
             position: relative;
             overflow: hidden;
+            color: white; /* Ensure text color is white */
         }
         
         .send-button:hover {
@@ -328,6 +340,27 @@
         ::-webkit-scrollbar-thumb:hover {
             background: rgba(99, 102, 241, 0.7);
         }
+
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background-color: #f00;
+            opacity: 0;
+            z-index: 9999;
+            animation: confetti-fall 3s ease-in-out forwards;
+        }
+
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(-100vh) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
     </style>
 </head>
 <body>
@@ -335,15 +368,17 @@
         <div class="header">
             <h1 class="title">Neon Oracle</h1>
             <p class="subtitle">Describe your app idea and watch AI generate the complete code</p>
+            <!-- Watermark moved here and styled for prominence -->
+            <div class="watermark">Created by Dakota Rain Lock</div>
         </div>
 
         <div id="chatHistory" class="chat-history">
             <div class="message-bubble planner-bubble">
-                <div class="model-indicator planner-indicator">ARCHITECT MODEL (Gemini 2.0 Flash)</div>
+                <div class="model-indicator planner-indicator">ARCHITECT MODEL (Gemini 1.5 Flash)</div>
                 <p>I'll analyze your app requirements and create a detailed development plan.</p>
             </div>
             <div class="message-bubble coder-bubble">
-                <div class="model-indicator coder-indicator">DEVELOPER MODEL (Gemini 1.5 Flash)</div>
+                <div class="model-indicator coder-indicator">DEVELOPER MODEL (Gemini 2.0 Flash)</div>
                 <p>Ready to transform the architect's plan into clean, functional code.</p>
             </div>
         </div>
@@ -364,13 +399,39 @@
         const spinner = document.getElementById('spinner');
 
         // Gemini API Configuration
-        const API_KEY = "AIzaSyAaZvzKxSddPgXN6JtGMLpGjmNSBOloFcI";
+        // IMPORTANT: This API key is hardcoded as per user request for deployment.
+        // For production environments, consider using server-side proxies or environment variables.
+        const API_KEY = "AIzaSyAaZvzKxSddPgXN6JtGMLpGjmNSBOloFcI"; 
         const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/";
 
+        function createConfetti() {
+            const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#f472b6', '#a78bfa'];
+            for (let i = 0; i < 50; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = `${Math.random() * 100}vw`;
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animationDelay = `${Math.random() * 2}s`;
+                confetti.style.width = `${Math.random() * 10 + 5}px`;
+                confetti.style.height = `${Math.random() * 10 + 5}px`;
+                document.body.appendChild(confetti);
+                
+                setTimeout(() => {
+                    confetti.remove();
+                }, 3000);
+            }
+        }
+
         async function callGeminiAPI(model, prompt) {
-            const modelEndpoint = model === 'planner' ? 
-                'gemini-1.5-flash:generateContent' : 
-                'gemini-1.5-flash:generateContent';
+            let modelEndpoint;
+            if (model === 'planner') {
+                modelEndpoint = 'gemini-1.5-flash:generateContent'; // Architect model (Gemini 1.5 Flash)
+            } else if (model === 'coder') {
+                modelEndpoint = 'gemini-2.0-flash:generateContent'; // Developer model (Gemini 2.0 Flash)
+            } else {
+                console.error("Unknown model role:", model);
+                throw new Error("Invalid model role specified.");
+            }
             
             try {
                 const response = await fetch(`${API_URL}${modelEndpoint}?key=${API_KEY}`, {
@@ -384,13 +445,22 @@
                 });
                 
                 if (!response.ok) {
-                    throw new Error(`API request failed with status ${response.status}`);
+                    const errorData = await response.json();
+                    console.error('API Error Response:', errorData);
+                    throw new Error(`API request failed with status ${response.status}: ${errorData.error.message || 'Unknown error'}`);
                 }
                 
                 const data = await response.json();
-                return data.candidates[0].content.parts[0].text;
+                if (data.candidates && data.candidates.length > 0 && 
+                    data.candidates[0].content && data.candidates[0].content.parts &&
+                    data.candidates[0].content.parts.length > 0) {
+                    return data.candidates[0].content.parts[0].text;
+                } else {
+                    console.error('Unexpected API response structure or no content received:', data);
+                    throw new Error('Unexpected API response structure or no content received.');
+                }
             } catch (error) {
-                console.error('API Error:', error);
+                console.error('API Call Exception:', error);
                 throw error;
             }
         }
@@ -404,10 +474,10 @@
                 bubbleClass = 'user-bubble';
             } else if (role === 'planner') {
                 bubbleClass = 'planner-bubble';
-                indicator = `<div class="model-indicator planner-indicator">ARCHITECT MODEL</div>`;
+                indicator = `<div class="model-indicator planner-indicator">ARCHITECT MODEL (Gemini 1.5 Flash)</div>`;
             } else if (role === 'coder') {
                 bubbleClass = 'coder-bubble';
-                indicator = `<div class="model-indicator coder-indicator">DEVELOPER MODEL</div>`;
+                indicator = `<div class="model-indicator coder-indicator">DEVELOPER MODEL (Gemini 2.0 Flash)</div>`;
             }
             
             messageDiv.className = `message-bubble ${bubbleClass}`;
@@ -415,10 +485,10 @@
             if (isCode) {
                 const codeMatch = text.match(/```html\n([\s\S]*?)\n```/);
                 const codeContent = codeMatch ? codeMatch[1] : text;
-                
+
                 messageDiv.innerHTML = `
                     ${indicator}
-                    <p>Here's your generated app code:</p>
+                    <p>Here's your generated app code: 🔥</p>
                     <div class="code-container mt-3">
                         <div class="code-header">
                             <span class="code-title">index.html</span>
@@ -432,6 +502,7 @@
                         <div class="code-content">${escapeHTML(codeContent)}</div>
                     </div>
                 `;
+                createConfetti();
             } else if (role === 'planner' || role === 'coder') {
                 messageDiv.innerHTML = `
                     ${indicator}
@@ -448,7 +519,7 @@
                         <p>${escapeHTML(text)}</p>
                     `;
                     chatHistory.scrollTop = chatHistory.scrollHeight;
-                }, 1500);
+                }, 1500); 
             } else {
                 messageDiv.innerHTML = `<p>${escapeHTML(text)}</p>`;
             }
@@ -476,47 +547,51 @@
             userInput.value = '';
             userInput.disabled = true;
             sendButton.disabled = true;
+            sendButton.textContent = "Generating..."; // Change button text
             spinner.classList.remove('hidden');
             
             try {
-                // Step 1: Get plan from architect model
-                const planPrompt = `As a software architect, create a detailed plan for a web application based on: "${prompt}". Include:
-1. App Title
-2. Purpose (1-2 sentences)
-3. Key Features (bulleted list)
-4. UI Elements (list of components)
-5. Styling Guidelines (Tailwind CSS preferences)
-6. Core Logic Outline (main JavaScript functionality)
+                // Step 1: Get plan from architect model (Gemini 1.5 Flash)
+                const planPrompt = `As an expert software architect using Gemini 1.5 Flash, create a detailed technical specification for: "${prompt}". Include:
+1. App Title (creative and memorable)
+2. Core Purpose (1 concise sentence)
+3. Key Features (prioritized list with technical considerations)
+4. UI Components (detailed with layout notes)
+5. Data Flow (how information moves through the app)
+6. Technical Stack (specific libraries/frameworks)
+7. Potential Challenges`;
 
-Make it detailed but concise.`;
-                
-                addMessage('planner', 'Analyzing requirements and creating development plan...');
+                addMessage('planner', 'Architect Model (Gemini 1.5 Flash): Analyzing requirements...');
                 const plan = await callGeminiAPI('planner', planPrompt);
                 addMessage('planner', plan);
 
-                // Step 2: Get code from developer model
-                const codePrompt = `Convert this app plan into a complete, standalone HTML file using Tailwind CSS:
+                // Step 2: Get code from developer model (Gemini 2.0 Flash)
+                const codePrompt = `As Gemini 2.0 Flash, transform this technical plan into production-ready code:
 ${plan}
 
 Requirements:
-1. Use Tailwind CSS via CDN
-2. Include all necessary JavaScript in a single script tag
-3. Make it fully responsive
-4. Add detailed comments explaining the code
-5. Ensure proper HTML structure with doctype, head, and body
-6. Use modern, clean design with proper spacing
-7. Output should be a complete HTML file wrapped in \`\`\`html\n...\`\`\``;
-                
-                addMessage('coder', 'Generating code from the development plan...');
+1. Single HTML file with embedded CSS/JS
+2. Use Tailwind CSS via CDN
+3. Modern ES6+ JavaScript
+4. Responsive design principles
+5. Accessibility best practices
+6. Performance optimizations
+7. Detailed code comments
+8. Wrap final code in \`\`\`html\n...\`\`\`
+9. Ensure there are no Cumulative Layout Shifts (CLS).
+`;
+
+                addMessage('coder', 'Developer Model (Gemini 2.0 Flash): Generating optimized code...');
                 const code = await callGeminiAPI('coder', codePrompt);
                 addMessage('coder', code, true);
                 
             } catch (error) {
-                console.error('Error:', error);
-                addMessage('coder', `Error: ${error.message}`);
+                console.error('Error during app generation:', error);
+                addMessage('coder', `Error: ${error.message || 'An unexpected error occurred during app generation.'}`);
             } finally {
                 userInput.disabled = false;
                 sendButton.disabled = false;
+                sendButton.textContent = "Generate App"; // Reset button text
                 spinner.classList.add('hidden');
                 userInput.focus();
             }
@@ -528,11 +603,17 @@ Requirements:
             if (e.key === 'Enter') generateApp();
         });
 
+        // Function to copy code to clipboard
         window.copyCode = function(button) {
             const codeContainer = button.closest('.code-container');
             const codeContent = codeContainer.querySelector('.code-content').textContent;
             
-            navigator.clipboard.writeText(codeContent).then(() => {
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = codeContent;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            try {
+                document.execCommand('copy');
                 const originalText = button.innerHTML;
                 button.innerHTML = `
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -543,7 +624,7 @@ Requirements:
                 setTimeout(() => {
                     button.innerHTML = originalText;
                 }, 2000);
-            }).catch(err => {
+            } catch (err) {
                 console.error('Failed to copy:', err);
                 button.textContent = 'Failed!';
                 setTimeout(() => {
@@ -554,7 +635,9 @@ Requirements:
                         Error
                     `;
                 }, 2000);
-            });
+            } finally {
+                document.body.removeChild(tempTextArea);
+            }
         };
     </script>
 </body>
